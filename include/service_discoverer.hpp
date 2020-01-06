@@ -16,8 +16,7 @@
 #include <iostream>
 #include <string>
 #include <set>
-#include <boost/asio.hpp>
-#include "detail/std_chrono_time_traits.hpp"
+#include <asio.hpp>
 
 #ifdef max // cleanup after windows
 #	undef max
@@ -35,7 +34,7 @@ namespace networking {
 * example:
 * @code
 *
-* boost::asio::io_service io_service;
+* asio::io_service io_service;
 *
 * service_discoverer discoverer(
 * 	io_service,
@@ -65,7 +64,7 @@ class service_discoverer
 	{
 		/* const */ std::string service_name; ///< the name of the service
 		/* const */ std::string computer_name; ///< the name of the computer the service is running on
-		/* const */ boost::asio::ip::tcp::endpoint endpoint; ///< enpoint you should connect to. Even though, it's an tcp endpoint, it's up to you, what you do with the data.
+		/* const */ asio::ip::tcp::endpoint endpoint; ///< enpoint you should connect to. Even though, it's an tcp endpoint, it's up to you, what you do with the data.
 		/* const */ std::chrono::steady_clock::time_point last_seen;
 
 		bool operator<(const service& o) const
@@ -113,14 +112,14 @@ class service_discoverer
 	* To protect against malicious announcers, there is a limit (max_services) on how many services will end up in the set of
 	* discovered services.
 	* */
-	service_discoverer(boost::asio::io_service& io_service, ///< io_service to use
+	service_discoverer(asio::io_service& io_service, ///< io_service to use
 		const std::string& listen_for_service, ///< the service to watch out for
 		const on_services_changed_t on_services_changed, ///< gets called when ever the set of discovered services changes
 		const std::chrono::steady_clock::duration max_idle = std::chrono::seconds(30), ///< services not seen for this amount of time will be removed from the set
 		const size_t max_services = 10, ///< maximum number of services to hold
 		const unsigned short multicast_port = 30001, ///< the udp multicast port to listen on
-		const boost::asio::ip::address& listen_address = boost::asio::ip::address::from_string("0.0.0.0"), ///< address to listen on
-		const boost::asio::ip::address& multicast_address = boost::asio::ip::address::from_string("239.255.0.1") ///< must match the one used in service_announcer
+		const asio::ip::address& listen_address = asio::ip::address::from_string("0.0.0.0"), ///< address to listen on
+		const asio::ip::address& multicast_address = asio::ip::address::from_string("239.255.0.1") ///< must match the one used in service_announcer
 	)
 		: listen_for_service_(listen_for_service)
 		, socket_(io_service)
@@ -132,21 +131,21 @@ class service_discoverer
 		assert(max_services_ > 0);
 
 		// Create the socket so that multiple may be bound to the same address.
-		boost::asio::ip::udp::endpoint listen_endpoint(
+		asio::ip::udp::endpoint listen_endpoint(
 			listen_address, multicast_port);
 		socket_.open(listen_endpoint.protocol());
-		socket_.set_option(boost::asio::ip::udp::socket::reuse_address(true));
+		socket_.set_option(asio::ip::udp::socket::reuse_address(true));
 		socket_.bind(listen_endpoint);
 
 		// Join the multicast group.
 		socket_.set_option(
-			boost::asio::ip::multicast::join_group(multicast_address));
+			asio::ip::multicast::join_group(multicast_address));
 
 		start_receive();
 	}
 
   private:
-	void handle_message(const std::string& message, const boost::asio::ip::udp::endpoint& sender_endpoint)
+	void handle_message(const std::string& message, const asio::ip::udp::endpoint& sender_endpoint)
 	{
 		std::vector<std::string> tokens;
 		{ // simpleton "parser"
@@ -192,7 +191,7 @@ class service_discoverer
 			{
 				service_name,
 				computer_name,
-				boost::asio::ip::tcp::endpoint(sender_endpoint.address(), (unsigned short)port),
+				asio::ip::tcp::endpoint(sender_endpoint.address(), (unsigned short)port),
 				std::chrono::steady_clock::now()
 			};
 
@@ -226,7 +225,7 @@ class service_discoverer
 			{ // manage the idle_check_timer in case the service dies and we receive no other announcements
 
 				{ // cancel the idle_check_timer
-					boost::system::error_code ec;
+					asio::error_code ec;
 					idle_check_timer_.cancel(ec);
 					if (ec)
 						std::cerr << ec.message();
@@ -246,7 +245,7 @@ class service_discoverer
 
 					idle_check_timer_.expires_at(oldest_pos->last_seen + max_idle_);
 					idle_check_timer_.async_wait(
-						[this](const boost::system::error_code& ec)
+						[this](const asio::error_code& ec)
 						{
 							if (!ec && remove_idle_services())
 							{
@@ -268,8 +267,8 @@ class service_discoverer
 	void start_receive()
 	{
 		// first do a receive with null_buffers to determine the size
-		socket_.async_receive(boost::asio::null_buffers(),
-			[this](const boost::system::error_code& error, unsigned int)
+		socket_.async_receive(asio::null_buffers(),
+			[this](const asio::error_code& error, unsigned int)
 			{
 				if (error)
 				{
@@ -280,12 +279,12 @@ class service_discoverer
 					size_t bytes_available = socket_.available();
 
 					auto receive_buffer = std::make_shared<std::vector<char>>(bytes_available);
-					auto sender_endpoint = std::make_shared<boost::asio::ip::udp::endpoint>();
+					auto sender_endpoint = std::make_shared<asio::ip::udp::endpoint>();
 
 					socket_.async_receive_from(
-						boost::asio::buffer(receive_buffer->data(), receive_buffer->size()), *sender_endpoint,
+						asio::buffer(receive_buffer->data(), receive_buffer->size()), *sender_endpoint,
 						[this, receive_buffer, sender_endpoint] // we hold on to the shared_ptrs, so that it does not delete it's contents
-							(const boost::system::error_code& error, size_t bytes_recvd)
+							(const asio::error_code& error, size_t bytes_recvd)
 						{
 							if (error)
 							{
@@ -322,13 +321,9 @@ class service_discoverer
 		return services_removed;
 	}
 
-	typedef boost::asio::basic_deadline_timer<
-		std::chrono::steady_clock,
-		detail::std_chrono_time_traits<std::chrono::steady_clock>> steady_clock_deadline_timer_t;
-
 	const std::string listen_for_service_;
-	boost::asio::ip::udp::socket socket_;
-	steady_clock_deadline_timer_t idle_check_timer_;
+	asio::ip::udp::socket socket_;
+	asio::steady_timer idle_check_timer_;
 	const on_services_changed_t on_services_changed_;
 	const std::chrono::steady_clock::duration max_idle_;
 	const size_t max_services_;

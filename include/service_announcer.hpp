@@ -15,7 +15,7 @@
 
 #include <iostream>
 #include <sstream>
-#include <boost/asio.hpp>
+#include <asio.hpp>
 
 namespace betabugs {
 namespace networking {
@@ -25,7 +25,7 @@ namespace networking {
 *
 * example:
 * @code
-* boost::asio::io_service io_service;
+* asio::io_service io_service;
 *
 * service_announcer announcer(io_service, "my_awesome_service", 1337);
 *
@@ -44,11 +44,11 @@ class service_announcer
 	* there is no coupling between the announcer and you service.
 	* */
 	service_announcer(
-		boost::asio::io_service& io_service, ///< io_service to use
+		asio::io_service& io_service, ///< io_service to use
 		const std::string& service_name, ///< the name of the announced service
 		const unsigned short service_port, ///< the port where the service listens on
 		const unsigned short multicast_port = 30001, ///< the port this udp multicast sender sends to
-		const boost::asio::ip::address& multicast_address = boost::asio::ip::address::from_string("239.255.0.1") ///< mulicast address to use. see: http://en.wikipedia.org/wiki/Multicast_address
+		const asio::ip::address& multicast_address = asio::ip::address::from_string("239.255.0.1") ///< mulicast address to use. see: http://en.wikipedia.org/wiki/Multicast_address
 	)
 		: endpoint_(multicast_address, multicast_port)
 		, socket_(io_service, endpoint_.protocol())
@@ -62,7 +62,7 @@ class service_announcer
 	}
 
   private:
-	void handle_send_to(const boost::system::error_code& error)
+	void handle_send_to(const asio::error_code& error)
 	{
 		if (error)
 		{
@@ -70,16 +70,16 @@ class service_announcer
 		}
 		else
 		{
-			timer_.expires_from_now(boost::posix_time::seconds(1));
+			timer_.expires_from_now(std::chrono::seconds(1));
 			timer_.async_wait(
-				[this](const boost::system::error_code& error)
+				[this](const asio::error_code& error)
 				{
 					this->handle_timeout(error);
 				});
 		}
 	}
 
-	void handle_timeout(const boost::system::error_code& error)
+	void handle_timeout(const asio::error_code& error)
 	{
 		if (!error)
 		{
@@ -94,11 +94,11 @@ class service_announcer
 	void write_message()
 	{
 		std::ostringstream os;
-		boost::system::error_code error_code;
+		asio::error_code error_code;
 
 		// "my_service_name:my_computer:2052"
 		os << service_name_
-			<< ":" << boost::asio::ip::host_name(error_code)
+			<< ":" << asio::ip::host_name(error_code)
 			<< ":" << service_port_;
 
 		if (error_code)
@@ -109,8 +109,8 @@ class service_announcer
 		message_ = os.str();
 
 		socket_.async_send_to(
-			boost::asio::buffer(message_), endpoint_,
-			[this](const boost::system::error_code& error, std::size_t /*bytes_transferred*/)
+			asio::buffer(message_), endpoint_,
+			[this](const asio::error_code& error, std::size_t /*bytes_transferred*/)
 			{
 				this->handle_send_to(error);
 			}
@@ -118,9 +118,9 @@ class service_announcer
 	}
 
   private:
-	boost::asio::ip::udp::endpoint endpoint_;
-	boost::asio::ip::udp::socket socket_;
-	boost::asio::deadline_timer timer_;
+	asio::ip::udp::endpoint endpoint_;
+	asio::ip::udp::socket socket_;
+	asio::steady_timer timer_;
 	std::string message_;
 	const std::string service_name_;
 	const unsigned short service_port_;

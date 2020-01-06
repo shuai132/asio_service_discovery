@@ -1,6 +1,7 @@
 # asio_service_discovery
 
-[![Build Status](https://travis-ci.org/beschulz/asio_service_discovery.svg?branch=master)](https://travis-ci.org/beschulz/asio_service_discovery)
+修改自: https://github.com/beschulz/asio_service_discovery  
+**移除了boost相关依赖 只依赖独立的ASIO和C++11**
 
 Components for service discovery via udp multicasting. It's using boost::asio for async networking. It's non-blocking and non-locking.
 
