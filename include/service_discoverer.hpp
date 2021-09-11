@@ -169,18 +169,7 @@ class service_discoverer
 		std::string port_string = tokens[2];
 
 		// unsigned long, because it's the smalles value that suports unsigned parsing via stl :/
-		unsigned long port = 0;
-
-		try
-		{
-			port = std::stoul(port_string);
-		}
-		catch (const std::exception& e)
-		{
-			std::cerr << "failed to parse port number from: " << port_string << std::endl;
-			return;
-		}
-
+		unsigned long port = std::stoul(port_string);
 		if (port > std::numeric_limits<unsigned short>::max())
 		{
 			std::cerr << "failed to parse port number from: " << port_string << std::endl;
